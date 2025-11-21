@@ -33,6 +33,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      # Login Docker Hub
       - name: Login to Docker Hub
         if: matrix.registry == 'docker.io'
         uses: docker/login-action@v2
@@ -41,6 +42,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Login GHCR
       - name: Login to GHCR
         if: matrix.registry == 'ghcr.io'
         uses: docker/login-action@v2
@@ -49,19 +51,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (arch-specific)
+      - name: Build and Push Image
         env:
-          REPO: ${{ github.repository }}
           SHORT_SHA: ${{ github.sha }}
+          GH_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
 
+          TAG="${SHORT_SHA:0:8}"
+
           if [ "${{ matrix.registry }}" = "ghcr.io" ]; then
-            IMAGE="ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:arm64-${SHORT_SHA::8}"
-            echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
-            docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
+            # ghcr.io/<owner>/<repo>
+            IMAGE="ghcr.io/$GH_OWNER/${{ github.event.repository.name }}:${{ matrix.tag_suffix }}-$TAG"
           else
-            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:amd64-${SHORT_SHA::8}"
-            echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
-            docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
+            # docker.io/<username>/<repo>
+            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ matrix.tag_suffix }}-$TAG"
           fi
+
+          echo "Building for ${{ matrix.arch }} and pushing to $IMAGE"
+          
+          docker buildx build \
+            --platform=${{ matrix.arch }} \
+            -f ./Dockerfile \
+            -t "$IMAGE" \
+            --push .
