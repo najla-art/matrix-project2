@@ -65,3 +65,4 @@ jobs:
             echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
             docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
           fi
+          
