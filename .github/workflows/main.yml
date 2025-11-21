@@ -49,20 +49,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (arch-specific)
-        env:
-          REPO: ${{ github.repository }}
-          SHORT_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
+      - name: Build and push
 
-          if [ "${{ matrix.registry }}" = "ghcr.io" ]; then
-            IMAGE="ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:arm64-${SHORT_SHA::8}"
-            echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
-            docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
-          else
-            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:amd64-${SHORT_SHA::8}"
-            echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
-            docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
-          fi
           
