@@ -1,4 +1,4 @@
-name: Build and Push Multi-Architecture Images
+name: Build architecture-specific images and push
 
 on:
   push:
@@ -24,17 +24,16 @@ jobs:
             tag_suffix: amd64
 
     steps:
-      - name: Checkout source code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU for cross-platform builds
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Docker Hub Login (only for amd64 build)
-      - name: Login to DockerHub
+      - name: Login to Docker Hub
         if: matrix.registry == 'docker.io'
         uses: docker/login-action@v2
         with:
@@ -42,7 +41,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # GHCR Login (only for arm64 build)
       - name: Login to GHCR
         if: matrix.registry == 'ghcr.io'
         uses: docker/login-action@v2
@@ -51,14 +49,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Image
+      - name: Build and push (arch-specific)
         env:
-          REPO_NAME: ${{ github.event.repository.name }}
+          REPO: ${{ github.repository }}
           SHORT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          SHA_TAG=${SHORT_SHA:0:8}
-
           if [ "${{ matrix.registry }}" = "ghcr.io" ]; then
-            IMAGE="ghcr.io/${{ github.reposit
+            IMAGE="ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:arm64-${SHORT_SHA::8}"
+            echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
+            docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
+          else
+            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:amd64-${SHORT_SHA::8}"
+            echo "Building for ${{ matrix.arch }} and pushing to ${IMAGE}"
+            docker buildx build --platform=${{ matrix.arch }} -f ./Dockerfile -t "${IMAGE}" --push .
+          fi
